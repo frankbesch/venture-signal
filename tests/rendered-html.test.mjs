@@ -83,3 +83,22 @@ test("treats creator businesses as audience, production, revenue, and trust syst
   assert.match(method, /A subscription\s+remains a nonbinding action; it is not retention/i);
   assert.match(method, /not platform benchmarks/i);
 });
+
+test("renders conservative shared-scale horizon area charts", async () => {
+  const [interfaceSource, method, styles] = await Promise.all([
+    readFile(new URL("../app/idea-lab.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../docs/method.md", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(interfaceSource, /HORIZON COMPARISON/);
+  assert.match(interfaceSource, /Cost vs revenue vs owner cash/);
+  assert.match(interfaceSource, /Same run-rate assumptions at three categorical horizons—not a growth curve/);
+  assert.match(interfaceSource, /scenario === "p10" \? "p90" : scenario === "p90" \? "p10" : "p50"/);
+  assert.match(interfaceSource, /Total cost includes initial plus ongoing cost/);
+  assert.match(interfaceSource, /domain=\{horizonDomain\}/);
+  assert.match(interfaceSource, /role="img" aria-label=/);
+  assert.match(styles, /\.horizon-chart \.chart-series\.profit \.line/);
+  assert.match(method, /categorical run-rate comparison, not a time-series growth\s+forecast/i);
+  assert.match(method, /share one y-axis domain/i);
+});

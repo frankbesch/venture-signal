@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  CreatorRevenueKey, ForecastBand, Idea, IdeaForecast, Scores, attractiveness, automationsFor,
+  CreatorRevenueKey, ForecastBand, Idea, IdeaForecast, Percentile, Scores, attractiveness, automationsFor,
   createForecast, defaultScores, dimensions, economics, effectiveWeeklyRevenue, emptyCreatorProfile,
   evidenceLevelsFor, gateFor, inferForecastModel, inferSector, isOrderedBand, methods, normalizeForecast,
   percentiles, ratioBand, scaleBand, sources, yearOneCashBand,
@@ -71,6 +71,70 @@ function ForecastBars({ label, band, formatter, adverseHigh = false }: { label: 
   </article>;
 }
 
+const horizonPoints = [{ label: "1 week", weeks: 1 }, { label: "1 month", weeks: MONTH_WEEKS }, { label: "1 year", weeks: 52 }];
+const scenarioNames: Record<Percentile, string> = { p10: "P10 downside", p50: "P50 central", p90: "P90 upside" };
+
+function compactMoney(value: number) {
+  const absolute = Math.abs(value);
+  const formatted = absolute >= 1000 ? `$${compact.format(absolute)}` : money.format(absolute);
+  return value < 0 ? `−${formatted}` : formatted;
+}
+
+function scenarioHorizonPoints(forecast: IdeaForecast, scenario: Percentile) {
+  const costScenario: Percentile = scenario === "p10" ? "p90" : scenario === "p90" ? "p10" : "p50";
+  const revenueRate = effectiveWeeklyRevenue(forecast)[scenario];
+  return horizonPoints.map(({ label, weeks }) => {
+    const revenue = revenueRate * weeks;
+    const cost = forecast.initialCost[costScenario] + forecast.weeklyCost[costScenario] * weeks;
+    return { label, revenue, cost, profit: revenue - cost };
+  });
+}
+
+function HorizonAreaChart({ scenario, forecast, domain }: { scenario: Percentile; forecast: IdeaForecast; domain: [number, number] }) {
+  const host = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(420);
+  useEffect(() => {
+    if (!host.current) return;
+    const observer = new ResizeObserver(([entry]) => setWidth(Math.max(250, Math.round(entry.contentRect.width))));
+    observer.observe(host.current);
+    return () => observer.disconnect();
+  }, []);
+
+  const points = scenarioHorizonPoints(forecast, scenario);
+  const height = 286;
+  const margin = { top: 22, right: 18, bottom: 42, left: 62 };
+  const chartWidth = width - margin.left - margin.right;
+  const chartHeight = height - margin.top - margin.bottom;
+  const [domainMin, domainMax] = domain;
+  const x = (index: number) => margin.left + chartWidth * (index / (points.length - 1));
+  const y = (value: number) => margin.top + (domainMax - value) / (domainMax - domainMin) * chartHeight;
+  const zeroY = y(0);
+  const series = [
+    { key: "cost" as const, label: "Total cost", className: "cost" },
+    { key: "revenue" as const, label: "Revenue", className: "revenue" },
+    { key: "profit" as const, label: "Owner cash", className: "profit" },
+  ];
+  const linePath = (key: "cost" | "revenue" | "profit") => points.map((point, index) => `${index ? "L" : "M"}${x(index)},${y(point[key])}`).join(" ");
+  const areaPath = (key: "cost" | "revenue" | "profit") => `${linePath(key)} L${x(points.length - 1)},${zeroY} L${x(0)},${zeroY} Z`;
+  const ticks = Array.from({ length: 5 }, (_, index) => domainMin + (domainMax - domainMin) * (index / 4));
+  const description = points.map((point) => `${point.label}: revenue ${money.format(point.revenue)}, total cost ${money.format(point.cost)}, owner cash ${money.format(point.profit)}`).join("; ");
+
+  return <article className="horizon-chart">
+    <header><div><span>{scenario.toUpperCase()}</span><b>{scenarioNames[scenario]}</b></div><strong>{compactMoney(points[2].profit)} <small>year 1</small></strong></header>
+    <div ref={host} className="horizon-chart-host">
+      <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`${scenarioNames[scenario]} cost, revenue, and owner cash. ${description}`}>
+        <rect data-chart-frame x={margin.left} y={margin.top} width={chartWidth} height={chartHeight} />
+        {ticks.map((tick) => <g key={tick}><line className="grid-line" x1={margin.left} x2={width - margin.right} y1={y(tick)} y2={y(tick)} /><text className="y-tick" x={margin.left - 9} y={y(tick) + 4} textAnchor="end">{compactMoney(tick)}</text></g>)}
+        <line className="zero-line" x1={margin.left} x2={width - margin.right} y1={zeroY} y2={zeroY} />
+        {series.map((item) => <g key={item.key} className={`chart-series ${item.className}`}><path className="area" d={areaPath(item.key)} /><path className="line" d={linePath(item.key)} />{points.map((point, index) => <circle key={point.label} cx={x(index)} cy={y(point[item.key])} r="4" />)}</g>)}
+        {points.map((point, index) => <text key={point.label} className="x-tick" x={x(index)} y={height - 15} textAnchor={index === 0 ? "start" : index === points.length - 1 ? "end" : "middle"}>{point.label}</text>)}
+        <text className="axis-title" data-axis="y" transform={`translate(15 ${margin.top + chartHeight / 2}) rotate(-90)`} textAnchor="middle">Cumulative USD</text>
+        <text className="axis-title" data-axis="x" x={margin.left + chartWidth / 2} y={height - 1} textAnchor="middle">Categorical horizon</text>
+      </svg>
+    </div>
+  </article>;
+}
+
 export function IdeaLab() {
   const [view, setView] = useState<View>("explore");
   const [idea, setIdea] = useState<Idea>(starterIdea);
@@ -118,6 +182,11 @@ export function IdeaLab() {
   const largestCreatorRevenue = Math.max(...Object.values(forecast.creatorRevenue).map((band) => band.p50));
   const revenueConcentration = weeklyRevenue.p50 > 0 ? largestCreatorRevenue / weeklyRevenue.p50 * 100 : 0;
   const yearOneCash = yearOneCashBand(forecast);
+  const allHorizonValues = percentiles.flatMap((scenario) => scenarioHorizonPoints(forecast, scenario).flatMap((point) => [point.revenue, point.cost, point.profit]));
+  const horizonMinimum = Math.min(0, ...allHorizonValues);
+  const horizonMaximum = Math.max(0, ...allHorizonValues);
+  const horizonPadding = Math.max(1, (horizonMaximum - horizonMinimum) * .12);
+  const horizonDomain: [number, number] = [horizonMinimum - horizonPadding, horizonMaximum + horizonPadding];
   const comparisonIdeas = useMemo(() => [normalizeIdea(idea), ...ideas.filter((item) => item.id !== idea.id).map(normalizeIdea)], [idea, ideas]);
   const rankedIdeas = useMemo(() => {
     const direction = ["initialCost", "weeklyEffort"].includes(rankBy) ? 1 : -1;
@@ -349,6 +418,11 @@ export function IdeaLab() {
                 <ForecastBars label="Year-one owner cash*" band={yearOneCash} formatter={money.format} />
               </div>
               <p className="footnote">*Revenue less initial and ongoing forecast costs; before founder compensation, tax, working capital, bad debt and capacity constraints. P10 cash combines low revenue with high costs; P90 does the reverse.</p>
+              <section className="horizon-figure" aria-labelledby="horizon-figure-title">
+                <div className="horizon-figure-head"><div><span className="panel-label"><span>↗</span> HORIZON COMPARISON</span><h3 id="horizon-figure-title">Cost vs revenue vs owner cash</h3><p>Same run-rate assumptions at three categorical horizons—not a growth curve.</p></div><div className="chart-legend" aria-label="Chart legend"><span className="cost">Total cost</span><span className="revenue">Revenue</span><span className="profit">Owner cash / profit proxy</span></div></div>
+                <div className="horizon-chart-grid">{percentiles.map((scenario) => <HorizonAreaChart key={scenario} scenario={scenario} forecast={forecast} domain={horizonDomain} />)}</div>
+                <p className="chart-method">P10 pairs P10 revenue with P90 costs; P50 aligns central inputs; P90 pairs P90 revenue with P10 costs. Total cost includes initial plus ongoing cost. Owner cash excludes founder compensation, tax, working capital, bad debt and capacity effects.</p>
+              </section>
               {forecast.model === "audience" && <>
                 <div className="creator-ratios">
                   <ForecastBars label="Subscriber adds / view" band={subscriberRate} formatter={(value) => `${value.toFixed(1)}%`} />

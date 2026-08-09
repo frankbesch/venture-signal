@@ -24,6 +24,7 @@ The default posture is low initial capex and no paid acquisition. “Zero acquis
 - editable P10/P50/P90 ranges for initial and ongoing cost, effort, reach, conversion and revenue;
 - content cadence plus separate platform, sponsor, affiliate and owned-offer revenue ranges;
 - week, month and year graphs plus a deliberately conservative year-one cash range;
+- shared-scale P10/P50/P90 area charts comparing cumulative cost, revenue and owner cash at weekly, monthly and annual horizons;
 - capex, opex, labor, contribution, break-even, payback and effort cross-check;
 - local idea snapshots, dimension-specific rankings and a two-axis option-set comparison;
 - sector-inferred AI and deterministic automation opportunities;

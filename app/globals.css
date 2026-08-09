@@ -174,6 +174,25 @@ input[type="range"] { accent-color: var(--blue); width: 100%; cursor: ew-resize;
 .forecast-bars em { display: block; height: 100%; background: var(--blue); }
 .forecast-bars em.p10 { background: #7e8bd3; }.forecast-bars em.p50 { background: var(--blue); }.forecast-bars em.p90 { background: var(--ink); }
 .forecast-bars > div > b { text-align: right; font-family: var(--font-geist-mono); font-size: 9px; white-space: nowrap; }
+.horizon-figure { margin-top: 16px; padding: 26px; background: var(--ink); color: white; }
+.horizon-figure-head { display: flex; justify-content: space-between; gap: 24px; align-items: end; margin-bottom: 22px; }
+.horizon-figure-head h3 { margin: 8px 0 4px; font-size: 25px; letter-spacing: -.04em; }.horizon-figure-head p { margin: 0; color: #9ca096; font-size: 10px; }
+.horizon-figure .panel-label { color: #d9dcd3; }.horizon-figure .panel-label > span { color: var(--acid); }
+.chart-legend { display: flex; flex-wrap: wrap; justify-content: end; gap: 12px; font-family: var(--font-geist-mono); font-size: 9px; color: #d6d9d0; }
+.chart-legend span { display: flex; gap: 6px; align-items: center; }.chart-legend span::before { content: ""; width: 17px; height: 3px; background: currentColor; }.chart-legend .cost { color: #ff7764; }.chart-legend .revenue { color: #7893ff; }.chart-legend .profit { color: var(--acid); }
+.horizon-chart-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(310px, 100%), 1fr)); gap: 10px; }
+.horizon-chart { min-width: 0; margin: 0; border: 1px solid #3b4038; background: #1b1f1a; }
+.horizon-chart > header { min-height: 64px; padding: 14px 16px 10px; display: flex; justify-content: space-between; gap: 18px; align-items: end; border-bottom: 1px solid #343832; }
+.horizon-chart > header > div { display: grid; gap: 3px; }.horizon-chart > header span { color: var(--acid); font-family: var(--font-geist-mono); font-size: 8px; letter-spacing: .1em; }.horizon-chart > header b { font-size: 12px; }.horizon-chart > header strong { color: white; font-size: 18px; letter-spacing: -.04em; text-align: right; }.horizon-chart > header small { display: block; color: #8f948a; font-family: var(--font-geist-mono); font-size: 8px; font-weight: 500; letter-spacing: .04em; }
+.horizon-chart-host { width: 100%; min-width: 0; overflow: hidden; }.horizon-chart svg { display: block; max-width: 100%; }
+.horizon-chart rect[data-chart-frame] { fill: #171a16; stroke: #454a41; stroke-width: 1; }
+.horizon-chart .grid-line { stroke: #30342e; stroke-width: 1; }.horizon-chart .zero-line { stroke: #7a8075; stroke-width: 1; stroke-dasharray: 4 4; }
+.horizon-chart text { fill: #c8ccc2; font-size: 11px; font-family: var(--font-geist-mono); }.horizon-chart .axis-title { fill: #858b80; font-size: 10px; letter-spacing: .04em; }.horizon-chart .x-tick { fill: #e5e7e1; }.horizon-chart .y-tick { fill: #a7aca2; }
+.horizon-chart .chart-series .area { opacity: .12; }.horizon-chart .chart-series .line { fill: none; stroke-width: 2.5; vector-effect: non-scaling-stroke; }.horizon-chart .chart-series circle { stroke: #171a16; stroke-width: 2; vector-effect: non-scaling-stroke; }
+.horizon-chart .chart-series.cost .area, .horizon-chart .chart-series.cost circle { fill: #ff7764; }.horizon-chart .chart-series.cost .line { stroke: #ff7764; }
+.horizon-chart .chart-series.revenue .area, .horizon-chart .chart-series.revenue circle { fill: #7893ff; }.horizon-chart .chart-series.revenue .line { stroke: #7893ff; }
+.horizon-chart .chart-series.profit .area, .horizon-chart .chart-series.profit circle { fill: var(--acid); }.horizon-chart .chart-series.profit .line { stroke: var(--acid); }
+.chart-method { margin: 14px 0 0; color: #92978e; font-size: 9px; line-height: 1.55; }
 .creator-ratios { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 12px; }
 .creator-reality { padding: 22px; margin-top: 12px; border-top: 5px solid var(--ink); }
 .creator-reality > .panel-label { margin-bottom: 14px; }.creator-reality > div:last-child { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1px; background: var(--line); }
@@ -237,7 +256,7 @@ footer { min-height: 92px; background: var(--ink); color: white; display: flex; 
   .idea-entry { margin-left: 20px; margin-right: 20px; }.idea-entry textarea { font-size: 17px; }.entry-footer { padding-left: 12px; }.entry-footer > span { display: none; }
   .branch-strip { margin-left: 20px; margin-right: 20px; }.branch-options { grid-template-columns: 1fr 1fr; }
   .section-heading { display: block; }.section-heading > p { margin-top: 16px; }.question-grid { grid-template-columns: 1fr; }
-  .theory-card { grid-template-columns: 1fr; gap: 15px; }.creator-grill-intro { grid-template-columns: 1fr; gap: 9px; }.creator-thesis-grid { grid-template-columns: 1fr; }.metric-grid, .initial-strip, .forecast-grid, .creator-ratios, .creator-reality > div:last-child { grid-template-columns: 1fr; }.basis-row { grid-template-columns: 1fr; }.basis-banner { grid-template-columns: 1fr; gap: 8px; }.horizon-head, .compare-title { display: grid; align-items: start; }.period-tabs { overflow-x: auto; }.option-plot { height: 300px; }.idea-table > div { grid-template-columns: 1fr 45px 28px; }.idea-table > div > span { display: none; }
+  .theory-card { grid-template-columns: 1fr; gap: 15px; }.creator-grill-intro { grid-template-columns: 1fr; gap: 9px; }.creator-thesis-grid { grid-template-columns: 1fr; }.metric-grid, .initial-strip, .forecast-grid, .creator-ratios, .creator-reality > div:last-child { grid-template-columns: 1fr; }.basis-row { grid-template-columns: 1fr; }.basis-banner { grid-template-columns: 1fr; gap: 8px; }.horizon-head, .compare-title, .horizon-figure-head { display: grid; align-items: start; }.chart-legend { justify-content: start; }.horizon-figure { padding: 18px 12px; }.period-tabs { overflow-x: auto; }.option-plot { height: 300px; }.idea-table > div { grid-template-columns: 1fr 45px 28px; }.idea-table > div > span { display: none; }
   .automation-principle { display: grid; }.risk-callout { grid-template-columns: 1fr; }.methodology-list article { grid-template-columns: 38px 1fr; padding: 12px 0; }.methodology-list article p { grid-column: 2; margin-top: -10px; }.contract-grid { grid-template-columns: 1fr; }.source-list > a { grid-template-columns: 1fr; gap: 0; padding: 16px 0; }.source-list > a p { margin: 6px 0; }
   footer { margin-bottom: 62px; display: grid; gap: 6px; }
 }

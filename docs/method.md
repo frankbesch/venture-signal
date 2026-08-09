@@ -51,6 +51,22 @@ reference-class distribution. Do not add Monte Carlo or success probabilities
 until those inputs exist. The separate unit-economics cross-check remains simple
 arithmetic on point assumptions.
 
+The horizon figure is a categorical run-rate comparison, not a time-series growth
+forecast. Its points are exactly one week, `52 / 12` weeks, and 52 weeks. Revenue
+is the selected weekly scenario multiplied by the horizon. Total cost includes the
+scenario’s one-time initial cost plus weekly cost multiplied by the horizon. Owner
+cash is revenue minus total cost and remains only a profit proxy because it excludes
+founder compensation, tax, working capital, bad debt and capacity effects.
+
+The three small multiples share one y-axis domain so visual height remains comparable:
+
+- P10 outcome = P10 revenue with P90 cost;
+- P50 outcome = aligned P50 inputs;
+- P90 outcome = P90 revenue with P10 cost.
+
+Lines connect categorical horizons for readability. They must never be described as
+observed growth, a fitted curve, or evidence that intermediate results will be linear.
+
 Ideas are ranked by one user-selected dimension at a time. Attractiveness and
 evidence remain separate columns; neither is blended into forecast outputs. Cost
 and effort rank ascending, while evidence, attractiveness, revenue and owner cash
