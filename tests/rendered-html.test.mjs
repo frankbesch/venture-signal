@@ -19,6 +19,7 @@ test("server-renders the decision workspace", async () => {
   assert.match(html, /<title>Venture Signal/);
   assert.match(html, /Evidence before enthusiasm/i);
   assert.match(html, /Grill this idea/i);
+  assert.match(html, /aria-controls="grill-questions"/i);
   assert.match(html, /Ten lenses\. One staged decision/);
   assert.match(html, /Local only/i);
   assert.doesNotMatch(html, /codex-preview|react-loading-skeleton|Your site is taking shape/i);
@@ -34,4 +35,6 @@ test("ships the evidence hierarchy and source provenance", async () => {
   assert.match(library, /Entrepreneur-as-scientist RCT/);
   assert.match(library, /NIST AI Risk Management Framework/);
   assert.match(interfaceSource, /Experiments update beliefs/);
+  assert.match(interfaceSource, /scrollIntoView/);
+  assert.match(interfaceSource, /Review grill questions/);
 });

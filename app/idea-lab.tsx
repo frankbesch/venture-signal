@@ -109,6 +109,11 @@ export function IdeaLab() {
     update("sector", inferSector(idea.pitch));
     if (idea.pitch.trim()) update("name", idea.pitch.split(/[.!?]/)[0].slice(0, 52) || "Untitled idea");
     setGrilling(true);
+    window.setTimeout(() => {
+      const questions = document.getElementById("grill-questions");
+      questions?.scrollIntoView({ behavior: "smooth", block: "start" });
+      questions?.focus({ preventScroll: true });
+    }, 0);
   };
 
   const setScore = (key: keyof Scores, value: number) => update("scores", { ...idea.scores, [key]: value });
@@ -156,7 +161,7 @@ export function IdeaLab() {
           <section className="idea-entry panel">
             <div className="panel-label"><span>01</span> START WITH THE RAW IDEA</div>
             <textarea aria-label="Business idea" value={idea.pitch} onChange={(e) => update("pitch", e.target.value)} placeholder="Describe the customer, painful job, offer, and why now. Rough is fine." />
-            <div className="entry-footer"><span>{idea.pitch.length} characters · {missing} critical gaps</span><button onClick={runGrill} disabled={!idea.pitch.trim()}>Grill this idea <b>→</b></button></div>
+            <div className="entry-footer"><span>{idea.pitch.length} characters · {missing} critical gaps</span><button onClick={runGrill} disabled={!idea.pitch.trim()} aria-expanded={grilling} aria-controls="grill-questions">{grilling ? "Review grill questions" : "Grill this idea"} <b>→</b></button></div>
           </section>
 
           <section className="branch-strip">
@@ -169,7 +174,7 @@ export function IdeaLab() {
             </div>
           </section>
 
-          {grilling && <section className="grill-section">
+          {grilling && <section className="grill-section" id="grill-questions" tabIndex={-1}>
             <div className="section-heading"><div><span className="kicker">THE GRILL</span><h2>Replace adjectives with episodes.</h2></div><p>Answer what you know. “Unknown” is a valid answer and becomes an experiment.</p></div>
             <div className="question-grid">
               <Field label="Who has the problem—and who controls budget?" value={idea.customer} onChange={(v) => update("customer", v)} placeholder="User, buyer, budget owner" />
