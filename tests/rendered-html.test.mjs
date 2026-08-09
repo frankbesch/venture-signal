@@ -50,7 +50,7 @@ test("keeps scenario ranges explicit and rankings dimension-specific", async () 
   assert.match(library, /weeklyReach: ForecastBand/);
   assert.match(library, /weeklyConversions: ForecastBand/);
   assert.match(library, /weeklyRevenue: ForecastBand/);
-  assert.match(library, /weeklyRevenue\.p10 \* 52 - forecast\.weeklyCost\.p90 \* 52 - forecast\.initialCost\.p90/);
+  assert.match(library, /revenue\.p10 \* 52 - forecast\.weeklyCost\.p90 \* 52 - forecast\.initialCost\.p90/);
   assert.match(interfaceSource, /MONTH_WEEKS = 52 \/ 12/);
   assert.match(interfaceSource, /P10\/P50\/P90 are editable scenario bounds/);
   assert.match(interfaceSource, /Rank one dimension at a time/);
@@ -58,4 +58,28 @@ test("keeps scenario ranges explicit and rankings dimension-specific", async () 
   assert.match(interfaceSource, /P50 year-one cash/);
   assert.match(method, /not empirically\s+calibrated quantiles, confidence intervals, or probabilities of success/i);
   assert.match(method, /No default composite rank is permitted/i);
+});
+
+test("treats creator businesses as audience, production, revenue, and trust systems", async () => {
+  const [library, interfaceSource, method] = await Promise.all([
+    readFile(new URL("../app/lib.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/idea-lab.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../docs/method.md", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(library, /"creator" \| "professional"/);
+  assert.match(library, /Meaningful watch time or repeat viewing/);
+  assert.match(library, /First realized platform, sponsor, affiliate or owned-offer revenue/);
+  assert.match(library, /creatorRevenueKeys\.reduce/);
+  assert.match(library, /TEST WATCH BEHAVIOR/);
+  assert.match(library, /YouTube — Channel monetization policies/);
+  assert.match(interfaceSource, /CREATOR BUSINESS LENS/);
+  assert.match(interfaceSource, /Views are an intermediate outcome/);
+  assert.match(interfaceSource, /Keep untested sources at \$0/);
+  assert.match(interfaceSource, /Eligibility ≠ income/);
+  assert.match(interfaceSource, /Subscriber adds \/ view/);
+  assert.match(interfaceSource, /CREATOR OPERATING CROSS-CHECK/);
+  assert.match(interfaceSource, /P50 hours \/ output/);
+  assert.match(method, /A subscription\s+remains a nonbinding action; it is not retention/i);
+  assert.match(method, /not platform benchmarks/i);
 });

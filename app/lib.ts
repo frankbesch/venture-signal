@@ -3,6 +3,17 @@ export type Scores = Record<(typeof dimensions)[number]["key"], number>;
 export type Percentile = "p10" | "p50" | "p90";
 export type ForecastBand = Record<Percentile, number>;
 export type ForecastModel = "audience" | "customer";
+export type CreatorRevenueKey = "platform" | "sponsor" | "affiliate" | "owned";
+export type CreatorRevenueMix = Record<CreatorRevenueKey, ForecastBand>;
+
+export type CreatorProfile = {
+  audiencePromise: string;
+  repeatReason: string;
+  contentSystem: string;
+  discoveryLoop: string;
+  monetizationOrder: string;
+  trustBoundary: string;
+};
 
 export type IdeaForecast = {
   model: ForecastModel;
@@ -15,6 +26,8 @@ export type IdeaForecast = {
   weeklyReach: ForecastBand;
   weeklyConversions: ForecastBand;
   weeklyRevenue: ForecastBand;
+  weeklyOutputs: ForecastBand;
+  creatorRevenue: CreatorRevenueMix;
 };
 
 export type Idea = {
@@ -39,11 +52,12 @@ export type Idea = {
   acquisitionCost: number;
   physicalEffort: number;
   mentalEffort: number;
+  creator: CreatorProfile;
   forecast: IdeaForecast;
   updatedAt: string;
 };
 
-export type Sector = "professional" | "local" | "commerce" | "hospitality" | "software" | "manufacturing";
+export type Sector = "creator" | "professional" | "local" | "commerce" | "hospitality" | "software" | "manufacturing";
 
 export const dimensions = [
   { key: "problem", label: "Problem", note: "Severity, frequency, urgency", positive: true },
@@ -61,6 +75,12 @@ export const dimensions = [
 export const defaultScores = Object.fromEntries(dimensions.map((d) => [d.key, 5])) as Scores;
 
 export const percentiles: Percentile[] = ["p10", "p50", "p90"];
+export const creatorRevenueKeys: CreatorRevenueKey[] = ["platform", "sponsor", "affiliate", "owned"];
+export const emptyCreatorProfile: CreatorProfile = {
+  audiencePromise: "", repeatReason: "", contentSystem: "", discoveryLoop: "", monetizationOrder: "", trustBoundary: "",
+};
+
+const zeroBand = (): ForecastBand => ({ p10: 0, p50: 0, p90: 0 });
 
 export function createForecast(model: ForecastModel = "customer"): IdeaForecast {
   return {
@@ -73,7 +93,9 @@ export function createForecast(model: ForecastModel = "customer"): IdeaForecast 
     weeklyEffort: { p10: 8, p50: 18, p90: 30 },
     weeklyReach: model === "audience" ? { p10: 100, p50: 1000, p90: 10000 } : { p10: 1, p50: 4, p90: 12 },
     weeklyConversions: model === "audience" ? { p10: 2, p50: 25, p90: 250 } : { p10: 0, p50: 1, p90: 3 },
-    weeklyRevenue: { p10: 0, p50: 1000, p90: 5000 },
+    weeklyRevenue: model === "audience" ? zeroBand() : { p10: 0, p50: 1000, p90: 5000 },
+    weeklyOutputs: model === "audience" ? { p10: 0.5, p50: 1, p90: 2 } : { p10: 1, p50: 2, p90: 4 },
+    creatorRevenue: { platform: zeroBand(), sponsor: zeroBand(), affiliate: zeroBand(), owned: zeroBand() },
   };
 }
 
@@ -87,6 +109,9 @@ function mergeBand(value: Partial<ForecastBand> | undefined, fallback: ForecastB
 
 export function normalizeForecast(value?: Partial<IdeaForecast>): IdeaForecast {
   const fallback = createForecast(value?.model ?? "customer");
+  const migratedPlatformRevenue = value?.model === "audience" && !value.creatorRevenue
+    ? mergeBand(value.weeklyRevenue, fallback.weeklyRevenue)
+    : fallback.creatorRevenue.platform;
   return {
     ...fallback,
     ...value,
@@ -97,6 +122,13 @@ export function normalizeForecast(value?: Partial<IdeaForecast>): IdeaForecast {
     weeklyReach: mergeBand(value?.weeklyReach, fallback.weeklyReach),
     weeklyConversions: mergeBand(value?.weeklyConversions, fallback.weeklyConversions),
     weeklyRevenue: mergeBand(value?.weeklyRevenue, fallback.weeklyRevenue),
+    weeklyOutputs: mergeBand(value?.weeklyOutputs, fallback.weeklyOutputs),
+    creatorRevenue: {
+      platform: mergeBand(value?.creatorRevenue?.platform, migratedPlatformRevenue),
+      sponsor: mergeBand(value?.creatorRevenue?.sponsor, fallback.creatorRevenue.sponsor),
+      affiliate: mergeBand(value?.creatorRevenue?.affiliate, fallback.creatorRevenue.affiliate),
+      owned: mergeBand(value?.creatorRevenue?.owned, fallback.creatorRevenue.owned),
+    },
   };
 }
 
@@ -112,11 +144,26 @@ export function isOrderedBand(band: ForecastBand) {
   return band.p10 <= band.p50 && band.p50 <= band.p90;
 }
 
-export function yearOneCashBand(forecast: IdeaForecast): ForecastBand {
+export function effectiveWeeklyRevenue(forecast: IdeaForecast): ForecastBand {
+  if (forecast.model !== "audience") return forecast.weeklyRevenue;
+  return Object.fromEntries(percentiles.map((p) => [p, creatorRevenueKeys.reduce((sum, key) => sum + forecast.creatorRevenue[key][p], 0)])) as ForecastBand;
+}
+
+export function ratioBand(numerator: ForecastBand, denominator: ForecastBand, scale = 1): ForecastBand {
+  const safe = (top: number, bottom: number) => bottom > 0 ? top / bottom * scale : 0;
   return {
-    p10: forecast.weeklyRevenue.p10 * 52 - forecast.weeklyCost.p90 * 52 - forecast.initialCost.p90,
-    p50: forecast.weeklyRevenue.p50 * 52 - forecast.weeklyCost.p50 * 52 - forecast.initialCost.p50,
-    p90: forecast.weeklyRevenue.p90 * 52 - forecast.weeklyCost.p10 * 52 - forecast.initialCost.p10,
+    p10: safe(numerator.p10, denominator.p90),
+    p50: safe(numerator.p50, denominator.p50),
+    p90: safe(numerator.p90, denominator.p10),
+  };
+}
+
+export function yearOneCashBand(forecast: IdeaForecast): ForecastBand {
+  const revenue = effectiveWeeklyRevenue(forecast);
+  return {
+    p10: revenue.p10 * 52 - forecast.weeklyCost.p90 * 52 - forecast.initialCost.p90,
+    p50: revenue.p50 * 52 - forecast.weeklyCost.p50 * 52 - forecast.initialCost.p50,
+    p90: revenue.p90 * 52 - forecast.weeklyCost.p10 * 52 - forecast.initialCost.p10,
   };
 }
 
@@ -130,6 +177,21 @@ export const evidenceLevels = [
   "Repeat purchase / retention",
   "Repeatable acquisition + positive contribution",
 ];
+
+export const creatorEvidenceLevels = [
+  "Creator assertion / desk estimate",
+  "Viewer or expert opinion",
+  "Observed search, watch or community behavior",
+  "Click, subscription, signup or explicit return intent",
+  "Meaningful watch time or repeat viewing",
+  "First realized platform, sponsor, affiliate or owned-offer revenue",
+  "Returning viewers, repeat sponsor or recurring buyer behavior",
+  "Repeatable organic distribution + positive contribution",
+];
+
+export function evidenceLevelsFor(model: ForecastModel) {
+  return model === "audience" ? creatorEvidenceLevels : evidenceLevels;
+}
 
 export const methods = [
   ["01", "Fit & affordable loss", "Inventory goals, edge, network, time, capital and non-negotiables."],
@@ -197,6 +259,30 @@ const commonNonAi: Automation[] = [
 ];
 
 const sectorAdditions: Record<Sector, { ai: Automation[]; nonAi: Automation[] }> = {
+  creator: {
+    ai: [{
+      title: "Packaging variant copilot", task: "Draft materially different title and thumbnail concepts from the approved episode promise; a human rejects misleading variants.",
+      why: "YouTube’s native thumbnail experiment uses watch-time share, not clicks alone. That supports controlled testing, not a claim that AI variants will win.",
+      test: "For eligible long-form videos, test up to three honest variants. Record watch-time share, test certainty and downstream retention.", risk: "Clickbait can raise starts while damaging trust or retention; small audiences may not resolve a winner.",
+      source: "YouTube — Test & compare thumbnails", url: "https://support.google.com/youtube/answer/13861714",
+    }, {
+      title: "Source-grounded production copilot", task: "Turn approved sources and host notes into an outline, claim ledger, edit brief, chapters and derivative clips for human review.",
+      why: "YouTube permits creative tools that support original work, but repetitive, generic or mass-produced output may be ineligible for monetization. Policy fit is not audience demand evidence.",
+      test: "Shadow five episodes. Measure research omissions, expert corrections, edit hours and whether each episode remains substantively distinct.", risk: "Fabricated claims, flattened expert voice, misleading edits and inauthentic-content risk.",
+      source: "YouTube — Channel monetization policies", url: "https://support.google.com/youtube/answer/1311392",
+    }],
+    nonAi: [{
+      title: "Publishing preflight gate", task: "Require source, rights, sponsor, affiliate, synthetic-media, description and final-expert-review checks before scheduling.",
+      why: "YouTube requires disclosure for certain realistic altered or synthetic content; FTC guidance requires disclosure of material brand relationships. Exact obligations remain fact-specific.",
+      test: "Run the checklist on the first ten releases; log blocked defects, exceptions and review time.", risk: "Checkbox compliance can miss misleading substance, jurisdiction differences or platform-policy changes.",
+      source: "YouTube — Altered content disclosure", url: "https://support.google.com/youtube/answer/14328491",
+    }, {
+      title: "Episode experiment ledger", task: "Join topic hypothesis, format, packaging variant, impressions, watch behavior, returning viewers, revenue source and production effort by episode.",
+      why: "YouTube warns against reading CTR in isolation and defines returning viewers as prior viewers who came back. These diagnostics do not reveal causality by themselves.",
+      test: "Pre-register one learning question per episode for eight releases; review by traffic source and cohort instead of declaring winners from single videos.", risk: "Small samples, changing audiences, survivor bias and optimizing platform metrics instead of durable trust.",
+      source: "YouTube — Understand your audience", url: "https://support.google.com/youtube/answer/9314416",
+    }],
+  },
   professional: {
     ai: [{
       title: "Evidence-grounded research assistant", task: "Search an approved corpus and return claim-to-source links for analyst review.",
@@ -268,6 +354,7 @@ export function automationsFor(sector: Sector) {
 
 export function inferSector(text: string): Sector {
   const value = text.toLowerCase();
+  if (/youtube|podcast|newsletter|creator|channel|audience|subscriber|viewer|content business|media business/.test(value)) return "creator";
   if (/manufactur|factory|fabricat|warehouse|machine|robot/.test(value)) return "manufacturing";
   if (/hotel|rental|guest|travel|restaurant|cabin|lodg/.test(value)) return "hospitality";
   if (/shop|store|retail|e-?commerce|product|brand|marketplace/.test(value)) return "commerce";
@@ -280,12 +367,16 @@ export function attractiveness(scores: Scores) {
   return Math.round(Object.values(scores).reduce((sum, value) => sum + value, 0) * 10) / Object.values(scores).length;
 }
 
-export function gateFor(score: number, evidence: number) {
+export function gateFor(score: number, evidence: number, model: ForecastModel = "customer") {
   if (score < 45) return { label: "PAUSE / REFRAME", tone: "red", reason: "The model is weak even before stronger evidence." };
   if (evidence < 2) return { label: "DISCOVER", tone: "amber", reason: "Use behavior-focused discovery; do not build yet." };
-  if (evidence < 4) return { label: "TEST COMMITMENT", tone: "amber", reason: "Seek a costly commitment with a pre-set threshold." };
+  if (evidence < 4) return model === "audience"
+    ? { label: "TEST WATCH BEHAVIOR", tone: "amber", reason: "Publish the smallest coherent batch and pre-set watch/return thresholds." }
+    : { label: "TEST COMMITMENT", tone: "amber", reason: "Seek a costly commitment with a pre-set threshold." };
   if (score < 65) return { label: "PIVOT / NARROW", tone: "amber", reason: "Evidence exists, but the opportunity design is still marginal." };
-  if (evidence < 6) return { label: "PAID PILOT", tone: "green", reason: "Fund only a manual or concierge proof of delivery." };
+  if (evidence < 6) return model === "audience"
+    ? { label: "TEST MONETIZATION", tone: "green", reason: "Test one trust-compatible revenue source; views alone are not a business." }
+    : { label: "PAID PILOT", tone: "green", reason: "Fund only a manual or concierge proof of delivery." };
   return { label: "REPEATABILITY TEST", tone: "green", reason: "Test retention and repeatable acquisition before scaling." };
 }
 
@@ -307,4 +398,8 @@ export const sources = [
   ["OECD: Generative AI and SME workforce", "Survey and research synthesis; reports workload and performance effects with strong context dependence.", "https://www.oecd.org/en/publications/generative-ai-and-the-sme-workforce_2d08b99d-en.html"],
   ["HMRC: Making Tax Digital", "Survey-based estimates found record-keeping time savings; UK VAT context limits transferability.", "https://www.gov.uk/government/publications/estimating-the-wider-economic-benefit-of-making-tax-digital"],
   ["NIST: Robotics and automation", "Common small-manufacturer applications and a measurement-first implementation process.", "https://www.nist.gov/mep/robotics-and-manufacturing-automation"],
+  ["YouTube Partner Program eligibility", "Eligibility thresholds permit application and review; they do not guarantee acceptance, reach or income.", "https://support.google.com/youtube/answer/72851"],
+  ["YouTube channel monetization policies", "Original, authentic value matters; repetitive, generic or mass-produced content can be ineligible even when AI use itself is permitted.", "https://support.google.com/youtube/answer/1311392"],
+  ["YouTube audience analytics", "Defines returning, new, casual and regular viewers; metrics describe behavior but do not establish why it occurred.", "https://support.google.com/youtube/answer/9314416"],
+  ["FTC creator disclosure guidance", "Material connections to brands require clear disclosure; application remains fact- and jurisdiction-dependent.", "https://www.ftc.gov/business-guidance/resources/disclosures-101-social-media-influencers"],
 ] as const;

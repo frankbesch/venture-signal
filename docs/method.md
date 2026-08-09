@@ -57,6 +57,34 @@ and effort rank ascending, while evidence, attractiveness, revenue and owner cas
 rank descending. No default composite rank is permitted because its weights would
 hide the user’s tradeoffs.
 
+## content-creator rule
+
+A content channel is not evaluated as a conventional customer-acquisition funnel.
+The creator path changes five parts of the product:
+
+1. **Causal thesis:** state the repeatable episode promise and why a viewer returns,
+   not merely why one topic could receive a click.
+2. **Evidence:** observed search/watch behavior, meaningful watch time, returning
+   viewers and realized revenue replace purchase-only milestones. A subscription
+   remains a nonbinding action; it is not retention.
+3. **Capacity:** model published outputs and founder effort together. A forecast
+   requiring a cadence the host/producer cannot sustain is operationally infeasible.
+4. **Revenue:** platform payouts, sponsors, affiliates and owned offers are entered
+   separately. Untested sources default to zero. Total creator revenue is the sum
+   of aligned P10, P50 and P90 inputs, not a view-count multiplier supplied by the app.
+5. **Trust and dependency:** record sponsor conflicts, disclosure boundaries,
+   originality/rights risk, host key-person risk and platform-policy dependence.
+
+The displayed subscriber-add rate and blended revenue per 1,000 views are arithmetic
+diagnostics. Their outer bounds combine low numerators with high denominators and
+vice versa, so they can be intentionally wide. They are not platform benchmarks.
+
+YouTube eligibility thresholds are displayed only as linked, date-sensitive context.
+Crossing a threshold permits application and review; it does not establish acceptance,
+distribution, revenue, or business viability. Creator automation must preserve original
+expert contribution, disclose applicable synthetic media and material connections, and
+be tested against correction time, defects, retention and audience trust—not output volume.
+
 ## automation rule
 
 Each automation card must include:
