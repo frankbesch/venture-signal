@@ -2,13 +2,18 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
-  Idea, Scores, attractiveness, automationsFor, defaultScores, dimensions,
-  economics, evidenceLevels, gateFor, inferSector, methods, sources,
+  ForecastBand, Idea, IdeaForecast, Scores, attractiveness, automationsFor,
+  createForecast, defaultScores, dimensions, economics, evidenceLevels, gateFor,
+  inferForecastModel, inferSector, isOrderedBand, methods, normalizeForecast,
+  percentiles, scaleBand, sources, yearOneCashBand,
 } from "./lib";
 
 type View = "explore" | "evaluate" | "compare" | "automation" | "evidence";
+type ForecastPeriod = "week" | "month" | "year";
+type RankKey = "evidence" | "attractiveness" | "initialCost" | "weeklyEffort" | "p50Revenue" | "p10Revenue" | "yearOneCash";
 
 const STORE_KEY = "venture-signal-v1";
+const MONTH_WEEKS = 52 / 12;
 const starterIdea: Idea = {
   id: "sample-studio",
   name: "Workflow automation studio",
@@ -23,10 +28,21 @@ const starterIdea: Idea = {
   evidence: 1,
   scores: { ...defaultScores, fit: 8, feasibility: 7, access: 6, risk: 6, defensibility: 4, wtp: 4 },
   capex: 1800, opex: 650, labor: 18, price: 3500, variableCost: 450, customers: 2,
-  acquisitionCost: 0, physicalEffort: 2, mentalEffort: 7, updatedAt: "2026-08-09",
+  acquisitionCost: 0, physicalEffort: 2, mentalEffort: 7,
+  forecast: createForecast("customer"), updatedAt: "2026-08-09",
 };
 
 const money = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+const compact = new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 });
+
+function normalizeIdea(value: Partial<Idea>): Idea {
+  return {
+    ...starterIdea,
+    ...value,
+    scores: { ...defaultScores, ...(value.scores ?? {}) },
+    forecast: normalizeForecast(value.forecast),
+  };
+}
 
 function Field({ label, value, onChange, placeholder }: { label: string; value: string; onChange: (value: string) => void; placeholder?: string }) {
   return <label className="field"><span>{label}</span><input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} /></label>;
@@ -36,6 +52,23 @@ function Range({ label, value, onChange, min = 0, max = 10, suffix = "" }: { lab
   return <label className="range-field"><span>{label}<b>{value}{suffix}</b></span><input type="range" min={min} max={max} value={value} onChange={(e) => onChange(Number(e.target.value))} /></label>;
 }
 
+function BandEditor({ label, unit, band, onChange }: { label: string; unit: string; band: ForecastBand; onChange: (band: ForecastBand) => void }) {
+  const ordered = isOrderedBand(band);
+  return <div className={`band-editor ${ordered ? "" : "invalid"}`}>
+    <div className="band-editor-title"><b>{label}</b><span>{unit}</span></div>
+    <div className="band-inputs">{percentiles.map((p) => <label key={p}><span>{p.toUpperCase()}</span><input aria-label={`${label} ${p.toUpperCase()}`} type="number" min="0" step="any" value={band[p]} onChange={(e) => onChange({ ...band, [p]: Math.max(0, Number(e.target.value)) })} /></label>)}</div>
+    {!ordered && <p>P10 ≤ P50 ≤ P90 required.</p>}
+  </div>;
+}
+
+function ForecastBars({ label, band, formatter, adverseHigh = false }: { label: string; band: ForecastBand; formatter: (value: number) => string; adverseHigh?: boolean }) {
+  const ceiling = Math.max(1, ...Object.values(band).map((value) => Math.abs(value)));
+  return <article className="forecast-card">
+    <header><b>{label}</b><span>{adverseHigh ? "higher is worse" : "higher is better"}</span></header>
+    <div className="forecast-bars">{percentiles.map((p) => <div key={p}><span>{p.toUpperCase()}</span><i><em className={p} style={{ width: `${Math.max(2, Math.abs(band[p]) / ceiling * 100)}%` }} /></i><b>{formatter(band[p])}</b></div>)}</div>
+  </article>;
+}
+
 export function IdeaLab() {
   const [view, setView] = useState<View>("explore");
   const [idea, setIdea] = useState<Idea>(starterIdea);
@@ -43,13 +76,15 @@ export function IdeaLab() {
   const [grilling, setGrilling] = useState(false);
   const [saved, setSaved] = useState(false);
   const [automationMode, setAutomationMode] = useState<"ai" | "nonAi">("ai");
+  const [forecastPeriod, setForecastPeriod] = useState<ForecastPeriod>("month");
+  const [rankBy, setRankBy] = useState<RankKey>("evidence");
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
       try {
         const stored = localStorage.getItem(STORE_KEY);
         if (stored) {
-          const parsed = JSON.parse(stored) as Idea[];
+          const parsed = (JSON.parse(stored) as Partial<Idea>[]).map(normalizeIdea);
           if (parsed.length) { setIdeas(parsed); setIdea(parsed[0]); }
         }
       } catch { /* local storage is optional */ }
@@ -66,9 +101,29 @@ export function IdeaLab() {
   const econ = economics(idea);
   const automations = useMemo(() => automationsFor(idea.sector), [idea.sector]);
   const missing = [idea.customer, idea.trigger, idea.channel, idea.priceProof, idea.founderEdge, idea.nonNegotiable].filter((v) => !v.trim()).length;
+  const forecast = normalizeForecast(idea.forecast);
+  const periodMultiplier = forecastPeriod === "week" ? 1 : forecastPeriod === "month" ? MONTH_WEEKS : 52;
+  const reachLabel = forecast.model === "audience" ? "Views" : "Qualified leads";
+  const conversionLabel = forecast.model === "audience" ? "Subscribers added" : "Customers added";
+  const yearOneCash = yearOneCashBand(forecast);
+  const comparisonIdeas = useMemo(() => [normalizeIdea(idea), ...ideas.filter((item) => item.id !== idea.id).map(normalizeIdea)], [idea, ideas]);
+  const rankedIdeas = useMemo(() => {
+    const direction = ["initialCost", "weeklyEffort"].includes(rankBy) ? 1 : -1;
+    const value = (item: Idea) => {
+      const itemForecast = normalizeForecast(item.forecast);
+      if (rankBy === "evidence") return item.evidence;
+      if (rankBy === "attractiveness") return attractiveness(item.scores);
+      if (rankBy === "initialCost") return itemForecast.initialCost.p50;
+      if (rankBy === "weeklyEffort") return itemForecast.weeklyEffort.p50;
+      if (rankBy === "p50Revenue") return itemForecast.weeklyRevenue.p50 * 52;
+      if (rankBy === "p10Revenue") return itemForecast.weeklyRevenue.p10 * 52;
+      return yearOneCashBand(itemForecast).p50;
+    };
+    return [...comparisonIdeas].sort((a, b) => (value(a) - value(b)) * direction);
+  }, [comparisonIdeas, rankBy]);
 
   const saveIdea = () => {
-    const normalized = { ...idea, sector: inferSector(`${idea.pitch} ${idea.customer}`) };
+    const normalized = normalizeIdea({ ...idea, sector: inferSector(`${idea.pitch} ${idea.customer}`) });
     const next = [normalized, ...ideas.filter((item) => item.id !== normalized.id)].slice(0, 8);
     setIdea(normalized); setIdeas(next); localStorage.setItem(STORE_KEY, JSON.stringify(next)); setSaved(true);
   };
@@ -77,7 +132,7 @@ export function IdeaLab() {
     const next: Idea = { ...starterIdea, ...{
       id: `idea-${Date.now()}`, name: "Untitled idea", pitch: "", customer: "", trigger: "", channel: "",
       priceProof: "", founderEdge: "", nonNegotiable: "≤ $2,500 initial capex; no paid acquisition initially",
-      scores: { ...defaultScores }, evidence: 0, updatedAt: new Date().toISOString().slice(0, 10),
+      scores: { ...defaultScores }, evidence: 0, forecast: createForecast("customer"), updatedAt: new Date().toISOString().slice(0, 10),
     }};
     setIdea(next); setGrilling(false); setView("explore"); setSaved(false);
   };
@@ -108,6 +163,8 @@ export function IdeaLab() {
   const runGrill = () => {
     update("sector", inferSector(idea.pitch));
     if (idea.pitch.trim()) update("name", idea.pitch.split(/[.!?]/)[0].slice(0, 52) || "Untitled idea");
+    const inferredModel = inferForecastModel(idea.pitch);
+    if (inferredModel !== forecast.model) update("forecast", createForecast(inferredModel));
     setGrilling(true);
     window.setTimeout(() => {
       const questions = document.getElementById("grill-questions");
@@ -117,6 +174,12 @@ export function IdeaLab() {
   };
 
   const setScore = (key: keyof Scores, value: number) => update("scores", { ...idea.scores, [key]: value });
+  const setForecastBand = (key: keyof Pick<IdeaForecast, "initialCost" | "weeklyCost" | "initialEffort" | "weeklyEffort" | "weeklyReach" | "weeklyConversions" | "weeklyRevenue">, band: ForecastBand) => update("forecast", { ...forecast, [key]: band });
+  const setForecastModel = (model: IdeaForecast["model"]) => {
+    const defaults = createForecast(model);
+    update("forecast", { ...forecast, model, weeklyReach: defaults.weeklyReach, weeklyConversions: defaults.weeklyConversions });
+  };
+  const selectIdea = (item: Idea) => { setIdea(normalizeIdea(item)); setSaved(ideas.some((savedIdea) => savedIdea.id === item.id)); };
 
   return (
     <main className="app-shell">
@@ -212,47 +275,94 @@ export function IdeaLab() {
         </section>}
 
         {view === "compare" && <section className="page-pad">
-          <div className="section-heading"><div><span className="kicker">COMPARE + SIMULATE</span><h2>Find the cheap failure point.</h2></div><p>Ranges beat point forecasts. These figures are user assumptions, not predictions.</p></div>
-          <div className="sim-grid">
-            <div className="panel inputs-panel">
-              <div className="panel-label"><span>01</span> OPERATING ASSUMPTIONS</div>
-              <Range label="Initial capex" value={idea.capex} onChange={(v) => update("capex", v)} max={25000} suffix="" />
-              <Range label="Monthly fixed opex" value={idea.opex} onChange={(v) => update("opex", v)} max={10000} />
-              <Range label="Founder labor / week" value={idea.labor} onChange={(v) => update("labor", v)} max={80} suffix="h" />
-              <Range label="Revenue / customer" value={idea.price} onChange={(v) => update("price", v)} max={20000} />
-              <Range label="Variable cost / customer" value={idea.variableCost} onChange={(v) => update("variableCost", v)} max={10000} />
-              <Range label="Customers / month" value={idea.customers} onChange={(v) => update("customers", v)} max={40} />
-              <Range label="Paid acquisition / customer" value={idea.acquisitionCost} onChange={(v) => update("acquisitionCost", v)} max={5000} />
-              <Range label="Physical effort" value={idea.physicalEffort} onChange={(v) => update("physicalEffort", v)} />
-              <Range label="Mental complexity" value={idea.mentalEffort} onChange={(v) => update("mentalEffort", v)} />
-            </div>
-            <div className="sim-output">
-              <div className="metric-grid">
-                <div><span>Contribution / customer</span><b>{money.format(econ.contribution)}</b></div>
-                <div><span>Monthly owner cash*</span><b className={econ.ownerCash >= 0 ? "positive" : "negative"}>{money.format(econ.ownerCash)}</b></div>
-                <div><span>Break-even customers</span><b>{Number.isFinite(econ.breakEven) ? econ.breakEven : "—"}</b></div>
-                <div><span>Capex payback*</span><b>{Number.isFinite(econ.payback) ? `${econ.payback.toFixed(1)} mo` : "—"}</b></div>
+          <div className="section-heading"><div><span className="kicker">COMPARE + SIMULATE</span><h2>Expose the range. Rank the tradeoff.</h2></div><p>P10/P50/P90 are editable scenario bounds—not calculated probabilities or a forecast of success.</p></div>
+
+          <div className="forecast-layout">
+            <div className="panel forecast-inputs">
+              <div className="panel-label"><span>01</span> SCENARIO INPUTS</div>
+              <div className="model-switch" aria-label="Forecast model">
+                <button className={forecast.model === "audience" ? "active" : ""} onClick={() => setForecastModel("audience")}>Audience</button>
+                <button className={forecast.model === "customer" ? "active" : ""} onClick={() => setForecastModel("customer")}>Customer</button>
               </div>
-              <p className="footnote">*Before founder compensation, tax, working capital, bad debt and capacity constraints.</p>
-              <div className="panel risk-board"><div className="panel-label"><span>02</span> STRESS SIGNALS</div>
-                {[
-                  ["Capex discipline", idea.capex <= 2500, `${money.format(idea.capex)} initial`],
-                  ["Zero paid acquisition", idea.acquisitionCost === 0, `${money.format(idea.acquisitionCost)} / customer`],
-                  ["Capacity", idea.customers * 4 <= idea.labor * 4, `${idea.customers * 4} est. delivery hours`],
-                  ["Effort load", idea.physicalEffort + idea.mentalEffort <= 12, `${idea.physicalEffort + idea.mentalEffort}/20 combined`],
-                  ["Stress case", ((Math.max(0, idea.price * .8 - idea.variableCost * 1.25 - idea.acquisitionCost * 1.25) * Math.floor(idea.customers * .7)) - idea.opex * 1.25) >= 0, `${money.format((Math.max(0, idea.price * .8 - idea.variableCost * 1.25 - idea.acquisitionCost * 1.25) * Math.floor(idea.customers * .7)) - idea.opex * 1.25)} / mo`],
-                ].map(([label, pass, value]) => <div className="risk-line" key={String(label)}><i className={pass ? "pass" : "fail"} /><span>{label}</span><b>{value}</b></div>)}
+              <div className="basis-row">
+                <label><span>Basis</span><select aria-label="Forecast evidence basis" value={forecast.basis} onChange={(e) => update("forecast", { ...forecast, basis: e.target.value as IdeaForecast["basis"] })}><option value="guess">Guess</option><option value="analog">Named analog</option><option value="observed">Observed data</option></select></label>
+                <label><span>Basis note</span><input aria-label="Forecast basis note" value={forecast.basisNote} onChange={(e) => update("forecast", { ...forecast, basisNote: e.target.value })} placeholder="Source, sample, date, or why unknown" /></label>
+              </div>
+              <BandEditor label="Initial cost" unit="$ one-time" band={forecast.initialCost} onChange={(band) => setForecastBand("initialCost", band)} />
+              <BandEditor label="Ongoing cost" unit="$ / week" band={forecast.weeklyCost} onChange={(band) => setForecastBand("weeklyCost", band)} />
+              <BandEditor label="Initial effort" unit="hours one-time" band={forecast.initialEffort} onChange={(band) => setForecastBand("initialEffort", band)} />
+              <BandEditor label="Ongoing effort" unit="hours / week" band={forecast.weeklyEffort} onChange={(band) => setForecastBand("weeklyEffort", band)} />
+              <BandEditor label={reachLabel} unit="/ week" band={forecast.weeklyReach} onChange={(band) => setForecastBand("weeklyReach", band)} />
+              <BandEditor label={conversionLabel} unit="/ week" band={forecast.weeklyConversions} onChange={(band) => setForecastBand("weeklyConversions", band)} />
+              <BandEditor label="Revenue" unit="$ / week" band={forecast.weeklyRevenue} onChange={(band) => setForecastBand("weeklyRevenue", band)} />
+            </div>
+
+            <div className="forecast-output">
+              <div className={`basis-banner ${forecast.basis}`}><b>{forecast.basis === "guess" ? "Uncalibrated assumptions" : forecast.basis === "analog" ? "Analog-based assumptions" : "Observed-input assumptions"}</b><span>{forecast.basisNote || "No source or sample recorded. Use these ranges to expose uncertainty—not to imply confidence."}</span></div>
+              <div className="initial-strip">
+                <ForecastBars label="Initial cost" band={forecast.initialCost} formatter={money.format} adverseHigh />
+                <ForecastBars label="Initial effort" band={forecast.initialEffort} formatter={(value) => `${compact.format(value)}h`} adverseHigh />
+              </div>
+              <div className="horizon-head"><div><span className="panel-label"><span>02</span> ONGOING RANGE</span><p>Week uses inputs; month = 52/12 weeks; year = 52 weeks.</p></div><div className="period-tabs" aria-label="Forecast period">{(["week", "month", "year"] as ForecastPeriod[]).map((period) => <button key={period} className={forecastPeriod === period ? "active" : ""} onClick={() => setForecastPeriod(period)}>{period}</button>)}</div></div>
+              <div className="forecast-grid">
+                <ForecastBars label="Cost" band={scaleBand(forecast.weeklyCost, periodMultiplier)} formatter={money.format} adverseHigh />
+                <ForecastBars label="Effort" band={scaleBand(forecast.weeklyEffort, periodMultiplier)} formatter={(value) => `${compact.format(value)}h`} adverseHigh />
+                <ForecastBars label={reachLabel} band={scaleBand(forecast.weeklyReach, periodMultiplier)} formatter={compact.format} />
+                <ForecastBars label={conversionLabel} band={scaleBand(forecast.weeklyConversions, periodMultiplier)} formatter={compact.format} />
+                <ForecastBars label="Revenue" band={scaleBand(forecast.weeklyRevenue, periodMultiplier)} formatter={money.format} />
+                <ForecastBars label="Year-one owner cash*" band={yearOneCash} formatter={money.format} />
+              </div>
+              <p className="footnote">*Revenue less initial and ongoing forecast costs; before founder compensation, tax, working capital, bad debt and capacity constraints. P10 cash combines low revenue with high costs; P90 does the reverse.</p>
+            </div>
+          </div>
+
+          <div className="crosscheck-section">
+            <div className="panel-label"><span>03</span> UNIT-ECONOMICS CROSS-CHECK</div>
+            <p>Point assumptions answer a different question: if volume and unit contribution are true, does the operating model work?</p>
+            <div className="sim-grid">
+              <div className="panel inputs-panel">
+                <Range label="Initial capex" value={idea.capex} onChange={(v) => update("capex", v)} max={25000} />
+                <Range label="Monthly fixed opex" value={idea.opex} onChange={(v) => update("opex", v)} max={10000} />
+                <Range label="Founder labor / week" value={idea.labor} onChange={(v) => update("labor", v)} max={80} suffix="h" />
+                <Range label="Revenue / customer" value={idea.price} onChange={(v) => update("price", v)} max={20000} />
+                <Range label="Variable cost / customer" value={idea.variableCost} onChange={(v) => update("variableCost", v)} max={10000} />
+                <Range label="Customers / month" value={idea.customers} onChange={(v) => update("customers", v)} max={40} />
+                <Range label="Paid acquisition / customer" value={idea.acquisitionCost} onChange={(v) => update("acquisitionCost", v)} max={5000} />
+                <Range label="Physical effort" value={idea.physicalEffort} onChange={(v) => update("physicalEffort", v)} />
+                <Range label="Mental complexity" value={idea.mentalEffort} onChange={(v) => update("mentalEffort", v)} />
+              </div>
+              <div className="sim-output">
+                <div className="metric-grid">
+                  <div><span>Contribution / customer</span><b>{money.format(econ.contribution)}</b></div>
+                  <div><span>Monthly owner cash*</span><b className={econ.ownerCash >= 0 ? "positive" : "negative"}>{money.format(econ.ownerCash)}</b></div>
+                  <div><span>Break-even customers</span><b>{Number.isFinite(econ.breakEven) ? econ.breakEven : "—"}</b></div>
+                  <div><span>Capex payback*</span><b>{Number.isFinite(econ.payback) ? `${econ.payback.toFixed(1)} mo` : "—"}</b></div>
+                </div>
+                <p className="footnote">*Before founder compensation, tax, working capital, bad debt and capacity constraints.</p>
+                <div className="panel risk-board">
+                  {[
+                    ["Capex discipline", idea.capex <= 2500, `${money.format(idea.capex)} initial`],
+                    ["Zero paid acquisition", idea.acquisitionCost === 0, `${money.format(idea.acquisitionCost)} / customer`],
+                    ["Capacity", idea.customers * 4 <= idea.labor * 4, `${idea.customers * 4} est. delivery hours`],
+                    ["Effort load", idea.physicalEffort + idea.mentalEffort <= 12, `${idea.physicalEffort + idea.mentalEffort}/20 combined`],
+                    ["Stress case", ((Math.max(0, idea.price * .8 - idea.variableCost * 1.25 - idea.acquisitionCost * 1.25) * Math.floor(idea.customers * .7)) - idea.opex * 1.25) >= 0, `${money.format((Math.max(0, idea.price * .8 - idea.variableCost * 1.25 - idea.acquisitionCost * 1.25) * Math.floor(idea.customers * .7)) - idea.opex * 1.25)} / mo`],
+                  ].map(([label, pass, value]) => <div className="risk-line" key={String(label)}><i className={pass ? "pass" : "fail"} /><span>{label}</span><b>{value}</b></div>)}
+                </div>
               </div>
             </div>
           </div>
+
           <div className="compare-section">
-            <div className="panel-label"><span>03</span> SAVED OPTION SET</div>
+            <div className="compare-title"><div><div className="panel-label"><span>04</span> RANK + COMPARE IDEAS</div><p>Rank one dimension at a time. No composite score can decide your tradeoff weights for you.</p></div><label><span>Rank by</span><select aria-label="Rank ideas by" value={rankBy} onChange={(e) => setRankBy(e.target.value as RankKey)}><option value="evidence">Evidence strength</option><option value="attractiveness">Attractiveness</option><option value="initialCost">Lowest P50 initial cost</option><option value="weeklyEffort">Lowest P50 weekly effort</option><option value="p10Revenue">P10 annual revenue</option><option value="p50Revenue">P50 annual revenue</option><option value="yearOneCash">P50 year-one cash</option></select></label></div>
+            <div className="rank-table">
+              <div className="rank-head"><span>#</span><span>Idea</span><span>Evidence</span><span>Attract.</span><span>P50 initial</span><span>P50 hrs/wk</span><span>P10 rev/yr</span><span>P50 rev/yr</span><span>P50 cash yr 1</span><span /></div>
+              {rankedIdeas.map((item, index) => { const itemForecast = normalizeForecast(item.forecast); return <div className={item.id === idea.id ? "active" : ""} key={item.id}><b>{index + 1}</b><button className="idea-name" onClick={() => selectIdea(item)}><b>{item.name}</b><span>{item.sector}</span></button><span>L{item.evidence + 1}</span><span>{Math.round(attractiveness(item.scores))}</span><span>{money.format(itemForecast.initialCost.p50)}</span><span>{compact.format(itemForecast.weeklyEffort.p50)}</span><span>{money.format(itemForecast.weeklyRevenue.p10 * 52)}</span><span>{money.format(itemForecast.weeklyRevenue.p50 * 52)}</span><span>{money.format(yearOneCashBand(itemForecast).p50)}</span>{ideas.some((savedIdea) => savedIdea.id === item.id) ? <button className="delete" onClick={() => deleteIdea(item.id)} aria-label={`Delete ${item.name}`}>×</button> : <span />}</div>; })}
+            </div>
             <div className="option-plot" aria-label="Ideas plotted by attractiveness and evidence">
               <div className="axis-y">EVIDENCE ↑</div><div className="axis-x">ATTRACTIVENESS →</div>
               <div className="quadrant q1">TEST COMMITMENT</div><div className="quadrant q2">INVEST NEXT TRANCHE</div><div className="quadrant q3">REFRAME</div><div className="quadrant q4">ATTRACTIVE FICTION</div>
-              {ideas.map((item) => <button title={item.name} key={item.id} className={item.id === idea.id ? "plot-dot active" : "plot-dot"} style={{ left: `${Math.max(4, Math.min(94, attractiveness(item.scores)))}%`, bottom: `${Math.max(5, (item.evidence / 7) * 88)}%` }} onClick={() => setIdea(item)}><span>{item.name.slice(0, 18)}</span></button>)}
+              {comparisonIdeas.map((item) => <button title={item.name} key={item.id} className={item.id === idea.id ? "plot-dot active" : "plot-dot"} style={{ left: `${Math.max(4, Math.min(94, attractiveness(item.scores)))}%`, bottom: `${Math.max(5, (item.evidence / 7) * 88)}%` }} onClick={() => selectIdea(item)}><span>{item.name.slice(0, 18)}</span></button>)}
             </div>
-            <div className="idea-table">{ideas.map((item) => <div key={item.id}><button className="idea-name" onClick={() => setIdea(item)}><b>{item.name}</b><span>{item.sector}</span></button><strong>{Math.round(attractiveness(item.scores))}</strong><span>L{item.evidence + 1} evidence</span><span>{gateFor(attractiveness(item.scores), item.evidence).label}</span><button className="delete" onClick={() => deleteIdea(item.id)} aria-label={`Delete ${item.name}`}>×</button></div>)}</div>
           </div>
         </section>}
 

@@ -6,7 +6,8 @@ The app does not compute a probability of success. It produces a staged recommen
 
 1. an equal-weight attractiveness score across ten dimensions;
 2. the strongest observed evidence level;
-3. a low-capex operating model supplied by the user.
+3. a low-capex operating model supplied by the user;
+4. user-authored uncertainty ranges for cost, effort, reach, conversion and revenue.
 
 Current gate rules are intentionally legible in `app/lib.ts`:
 
@@ -23,9 +24,38 @@ These are governance defaults, not empirically calibrated cutoffs. Change them o
 
 Evidence quality never gets blended into the attractiveness score. A high score with weak evidence must remain visibly weak. The ladder is ordinal: do not average levels or treat the distance between levels as equal.
 
-## financial rule
+## forecast and financial rules
 
-Simulation outputs are arithmetic on user assumptions, not forecasts. Any future forecast module should add ranges, correlations, capacity constraints, working capital and explicit reference classes before adding Monte Carlo output. False precision is a larger risk than missing sophistication.
+The scenario module stores three editable bounds for each input:
+
+- P10 = lower numeric outcome;
+- P50 = central numeric outcome;
+- P90 = higher numeric outcome.
+
+These labels describe the user’s scenario ordering. They are not empirically
+calibrated quantiles, confidence intervals, or probabilities of success. For cost
+and effort, P90 is adverse; for reach, conversion and revenue, P90 is favorable.
+The interface rejects neither speculation nor wide ranges, but it labels each idea’s
+basis as guess, named analog, or observed data and asks for a source note.
+
+Weekly inputs are the source of truth. Month uses `52 / 12` weeks and year uses
+`52` weeks. Initial cost and effort remain one-time values. Year-one owner cash is:
+
+- P10: P10 revenue − P90 ongoing cost − P90 initial cost;
+- P50: aligned P50 inputs;
+- P90: P90 revenue − P10 ongoing cost − P10 initial cost.
+
+This deliberately visible stress range does not model correlation, capacity,
+working capital, tax, founder compensation, bad debt, platform-policy risk, or a
+reference-class distribution. Do not add Monte Carlo or success probabilities
+until those inputs exist. The separate unit-economics cross-check remains simple
+arithmetic on point assumptions.
+
+Ideas are ranked by one user-selected dimension at a time. Attractiveness and
+evidence remain separate columns; neither is blended into forecast outputs. Cost
+and effort rank ascending, while evidence, attractiveness, revenue and owner cash
+rank descending. No default composite rank is permitted because its weights would
+hide the user’s tradeoffs.
 
 ## automation rule
 

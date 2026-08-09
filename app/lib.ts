@@ -1,5 +1,22 @@
 export type Scores = Record<(typeof dimensions)[number]["key"], number>;
 
+export type Percentile = "p10" | "p50" | "p90";
+export type ForecastBand = Record<Percentile, number>;
+export type ForecastModel = "audience" | "customer";
+
+export type IdeaForecast = {
+  model: ForecastModel;
+  basis: "guess" | "analog" | "observed";
+  basisNote: string;
+  initialCost: ForecastBand;
+  weeklyCost: ForecastBand;
+  initialEffort: ForecastBand;
+  weeklyEffort: ForecastBand;
+  weeklyReach: ForecastBand;
+  weeklyConversions: ForecastBand;
+  weeklyRevenue: ForecastBand;
+};
+
 export type Idea = {
   id: string;
   name: string;
@@ -22,6 +39,7 @@ export type Idea = {
   acquisitionCost: number;
   physicalEffort: number;
   mentalEffort: number;
+  forecast: IdeaForecast;
   updatedAt: string;
 };
 
@@ -41,6 +59,66 @@ export const dimensions = [
 ] as const;
 
 export const defaultScores = Object.fromEntries(dimensions.map((d) => [d.key, 5])) as Scores;
+
+export const percentiles: Percentile[] = ["p10", "p50", "p90"];
+
+export function createForecast(model: ForecastModel = "customer"): IdeaForecast {
+  return {
+    model,
+    basis: "guess",
+    basisNote: "",
+    initialCost: { p10: 500, p50: 1800, p90: 4000 },
+    weeklyCost: { p10: 50, p50: 150, p90: 350 },
+    initialEffort: { p10: 12, p50: 30, p90: 60 },
+    weeklyEffort: { p10: 8, p50: 18, p90: 30 },
+    weeklyReach: model === "audience" ? { p10: 100, p50: 1000, p90: 10000 } : { p10: 1, p50: 4, p90: 12 },
+    weeklyConversions: model === "audience" ? { p10: 2, p50: 25, p90: 250 } : { p10: 0, p50: 1, p90: 3 },
+    weeklyRevenue: { p10: 0, p50: 1000, p90: 5000 },
+  };
+}
+
+function mergeBand(value: Partial<ForecastBand> | undefined, fallback: ForecastBand): ForecastBand {
+  return {
+    p10: Number.isFinite(value?.p10) ? Number(value?.p10) : fallback.p10,
+    p50: Number.isFinite(value?.p50) ? Number(value?.p50) : fallback.p50,
+    p90: Number.isFinite(value?.p90) ? Number(value?.p90) : fallback.p90,
+  };
+}
+
+export function normalizeForecast(value?: Partial<IdeaForecast>): IdeaForecast {
+  const fallback = createForecast(value?.model ?? "customer");
+  return {
+    ...fallback,
+    ...value,
+    initialCost: mergeBand(value?.initialCost, fallback.initialCost),
+    weeklyCost: mergeBand(value?.weeklyCost, fallback.weeklyCost),
+    initialEffort: mergeBand(value?.initialEffort, fallback.initialEffort),
+    weeklyEffort: mergeBand(value?.weeklyEffort, fallback.weeklyEffort),
+    weeklyReach: mergeBand(value?.weeklyReach, fallback.weeklyReach),
+    weeklyConversions: mergeBand(value?.weeklyConversions, fallback.weeklyConversions),
+    weeklyRevenue: mergeBand(value?.weeklyRevenue, fallback.weeklyRevenue),
+  };
+}
+
+export function inferForecastModel(text: string): ForecastModel {
+  return /youtube|podcast|channel|newsletter|audience|creator|media|content|subscriber|viewer/i.test(text) ? "audience" : "customer";
+}
+
+export function scaleBand(band: ForecastBand, multiplier: number): ForecastBand {
+  return Object.fromEntries(percentiles.map((p) => [p, band[p] * multiplier])) as ForecastBand;
+}
+
+export function isOrderedBand(band: ForecastBand) {
+  return band.p10 <= band.p50 && band.p50 <= band.p90;
+}
+
+export function yearOneCashBand(forecast: IdeaForecast): ForecastBand {
+  return {
+    p10: forecast.weeklyRevenue.p10 * 52 - forecast.weeklyCost.p90 * 52 - forecast.initialCost.p90,
+    p50: forecast.weeklyRevenue.p50 * 52 - forecast.weeklyCost.p50 * 52 - forecast.initialCost.p50,
+    p90: forecast.weeklyRevenue.p90 * 52 - forecast.weeklyCost.p10 * 52 - forecast.initialCost.p10,
+  };
+}
 
 export const evidenceLevels = [
   "Assertion / desk estimate",
@@ -194,7 +272,7 @@ export function inferSector(text: string): Sector {
   if (/hotel|rental|guest|travel|restaurant|cabin|lodg/.test(value)) return "hospitality";
   if (/shop|store|retail|e-?commerce|product|brand|marketplace/.test(value)) return "commerce";
   if (/software|saas|app|platform|api|data|developer/.test(value)) return "software";
-  if (/home service|clean|repair|landscap|plumb|electric|mobile|local/.test(value)) return "local";
+  if (/home service|clean(?:ing)?|repair|landscap|plumb|electrician|hvac|mobile (?:service|detail|mechanic)|contractor/.test(value)) return "local";
   return "professional";
 }
 

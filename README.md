@@ -20,8 +20,10 @@ The default posture is low initial capex and no paid acquisition. “Zero acquis
 - guided idea intake and missing-variable grill;
 - ten-lens opportunity scorecard plus eight-level evidence ladder;
 - evidence-weighted decision gate;
-- capex, opex, labor, contribution, break-even, payback and effort simulation;
-- local idea snapshots and a two-axis option-set comparison;
+- editable P10/P50/P90 ranges for initial and ongoing cost, effort, reach, conversion and revenue;
+- week, month and year graphs plus a deliberately conservative year-one cash range;
+- capex, opex, labor, contribution, break-even, payback and effort cross-check;
+- local idea snapshots, dimension-specific rankings and a two-axis option-set comparison;
 - sector-inferred AI and deterministic automation opportunities;
 - source links, transfer limits, failure modes and cheapest-valid-test guidance.
 
@@ -49,6 +51,7 @@ pnpm run lint
 
 - Scores are structured judgment, not a validated prediction of venture success.
 - Automation cards are research-backed analogies, not sector-specific ROI forecasts.
+- P10/P50/P90 values are user-authored scenarios, not calibrated quantiles or success probabilities.
 - Financial outputs omit founder compensation, tax, working capital, bad debt and capacity interactions.
 - Research links were reviewed on 2026-08-09; re-check them before using the app for a consequential or regulated decision.
 

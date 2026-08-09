@@ -38,3 +38,24 @@ test("ships the evidence hierarchy and source provenance", async () => {
   assert.match(interfaceSource, /scrollIntoView/);
   assert.match(interfaceSource, /Review grill questions/);
 });
+
+test("keeps scenario ranges explicit and rankings dimension-specific", async () => {
+  const [library, interfaceSource, method] = await Promise.all([
+    readFile(new URL("../app/lib.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/idea-lab.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../docs/method.md", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(library, /type Percentile = "p10" \| "p50" \| "p90"/);
+  assert.match(library, /weeklyReach: ForecastBand/);
+  assert.match(library, /weeklyConversions: ForecastBand/);
+  assert.match(library, /weeklyRevenue: ForecastBand/);
+  assert.match(library, /weeklyRevenue\.p10 \* 52 - forecast\.weeklyCost\.p90 \* 52 - forecast\.initialCost\.p90/);
+  assert.match(interfaceSource, /MONTH_WEEKS = 52 \/ 12/);
+  assert.match(interfaceSource, /P10\/P50\/P90 are editable scenario bounds/);
+  assert.match(interfaceSource, /Rank one dimension at a time/);
+  assert.match(interfaceSource, /Rank ideas by/);
+  assert.match(interfaceSource, /P50 year-one cash/);
+  assert.match(method, /not empirically\s+calibrated quantiles, confidence intervals, or probabilities of success/i);
+  assert.match(method, /No default composite rank is permitted/i);
+});
