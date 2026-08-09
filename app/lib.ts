@@ -1,0 +1,232 @@
+export type Scores = Record<(typeof dimensions)[number]["key"], number>;
+
+export type Idea = {
+  id: string;
+  name: string;
+  pitch: string;
+  sector: Sector;
+  customer: string;
+  trigger: string;
+  channel: string;
+  priceProof: string;
+  founderEdge: string;
+  nonNegotiable: string;
+  evidence: number;
+  scores: Scores;
+  capex: number;
+  opex: number;
+  labor: number;
+  price: number;
+  variableCost: number;
+  customers: number;
+  acquisitionCost: number;
+  physicalEffort: number;
+  mentalEffort: number;
+  updatedAt: string;
+};
+
+export type Sector = "professional" | "local" | "commerce" | "hospitality" | "software" | "manufacturing";
+
+export const dimensions = [
+  { key: "problem", label: "Problem", note: "Severity, frequency, urgency", positive: true },
+  { key: "access", label: "Buyer access", note: "Reach and sales friction", positive: true },
+  { key: "wtp", label: "WTP", note: "Observed willingness to pay", positive: true },
+  { key: "advantage", label: "Advantage", note: "Gain over current substitute", positive: true },
+  { key: "feasibility", label: "Feasibility", note: "Technical and operational", positive: true },
+  { key: "economics", label: "Economics", note: "Contribution and cash cycle", positive: true },
+  { key: "risk", label: "Low risk", note: "Regulation, liability, dependency", positive: true },
+  { key: "defensibility", label: "Compounding", note: "Learning, data, reputation", positive: true },
+  { key: "fit", label: "Founder fit", note: "Credibility, energy, resources", positive: true },
+  { key: "options", label: "Option value", note: "Adjacency and reversibility", positive: true },
+] as const;
+
+export const defaultScores = Object.fromEntries(dimensions.map((d) => [d.key, 5])) as Scores;
+
+export const evidenceLevels = [
+  "Assertion / desk estimate",
+  "Expert or customer opinion",
+  "Recent behavior, spend, workaround",
+  "Nonbinding action",
+  "Costly commitment",
+  "Purchase + product use",
+  "Repeat purchase / retention",
+  "Repeatable acquisition + positive contribution",
+];
+
+export const methods = [
+  ["01", "Fit & affordable loss", "Inventory goals, edge, network, time, capital and non-negotiables."],
+  ["02", "Opportunity set", "Generate customer × job × application combinations before choosing."],
+  ["03", "Theory of value", "State what changed and why a buyer will switch, pay and stay."],
+  ["04", "Buying-system discovery", "Reconstruct actual episodes across user, buyer, blocker and budget."],
+  ["05", "Reference class", "Build bottom-up market, substitute map and base rates."],
+  ["06", "Business-model system", "Map value creation, delivery, capture and dependencies."],
+  ["07", "Critical assumptions", "Rank consequence × uncertainty; pre-register falsification thresholds."],
+  ["08", "Behavioral demand", "Escalate from opinion to deposits, payment, use and retention."],
+  ["09", "Feasibility + economics", "Prototype the bottleneck; model contribution, capacity and cash."],
+  ["10", "Decision gate", "Fund only the next uncertainty-reducing milestone."],
+] as const;
+
+type Automation = {
+  title: string;
+  task: string;
+  why: string;
+  test: string;
+  risk: string;
+  source: string;
+  url: string;
+};
+
+const commonAi: Automation[] = [
+  {
+    title: "Human-in-loop service copilot",
+    task: "Retrieve policy and draft responses; a person approves consequential output.",
+    why: "A field study in technical support found productivity gains concentrated among less-experienced agents; this is a reference class, not a forecast.",
+    test: "Shadow 50 cases. Compare handle time, resolution and correction rate against manual work.",
+    risk: "Wrong answers, privacy leakage, automation bias.",
+    source: "NBER — Generative AI at Work",
+    url: "https://www.nber.org/papers/w31161",
+  },
+  {
+    title: "Draft → critique → approve",
+    task: "Create first drafts of proposals, summaries, SOPs and client updates from approved facts.",
+    why: "Experimental evidence supports gains on bounded knowledge-work tasks, but performance falls outside the model’s competence frontier.",
+    test: "Randomize 20 comparable deliverables. Track elapsed time, defects and reviewer minutes.",
+    risk: "Plausible fabrication and homogenized output.",
+    source: "HBS — Jagged Technological Frontier",
+    url: "https://www.hbs.edu/faculty/Pages/item.aspx?num=64700",
+  },
+];
+
+const commonNonAi: Automation[] = [
+  {
+    title: "Quote-to-cash workflow",
+    task: "Connect intake, scope template, e-signature, invoice, payment and ledger without re-keying.",
+    why: "Integrated record-keeping can reduce manual entry and errors; benefits depend on clean process design.",
+    test: "Run 10 transactions. Measure touches, cycle time, exceptions and days-to-cash.",
+    risk: "Brittle integrations and silent mapping errors.",
+    source: "HMRC — Making Tax Digital evaluation",
+    url: "https://www.gov.uk/government/publications/estimating-the-wider-economic-benefit-of-making-tax-digital",
+  },
+  {
+    title: "Rules-based intake + routing",
+    task: "Validate required fields, qualify by explicit rules, create tasks and send status updates.",
+    why: "This removes deterministic handoffs before adding probabilistic AI; cloud tools shift spend from capital to operating expense.",
+    test: "Automate one path for two weeks; log every exception and manual override.",
+    risk: "Bad rules scale bad process; edge cases can disappear.",
+    source: "OECD — Digital Transformation of SMEs",
+    url: "https://www.oecd.org/en/publications/the-digital-transformation-of-smes_bdb9256a-en.html",
+  },
+];
+
+const sectorAdditions: Record<Sector, { ai: Automation[]; nonAi: Automation[] }> = {
+  professional: {
+    ai: [{
+      title: "Evidence-grounded research assistant", task: "Search an approved corpus and return claim-to-source links for analyst review.",
+      why: "High leverage where work is text-heavy and reviewable; source coverage and retrieval quality are the bottlenecks.",
+      test: "Blind-score 30 answers for source support, omissions and expert correction time.", risk: "Citation laundering, stale sources, confidentiality.",
+      source: "NIST — Generative AI Profile", url: "https://doi.org/10.6028/NIST.AI.600-1",
+    }],
+    nonAi: [{
+      title: "Reusable delivery system", task: "Templates, checklists, scheduling, reminders and client portal milestones.",
+      why: "Standardizing the repeatable layer reduces coordination without delegating judgment.", test: "Time three projects before/after; count rework and dropped handoffs.", risk: "Over-standardizing bespoke work.",
+      source: "OECD — SME digital tools", url: "https://www.oecd.org/en/publications/the-digital-transformation-of-smes_bdb9256a-en.html",
+    }],
+  },
+  local: {
+    ai: [{
+      title: "Call and message triage", task: "Summarize inbound requests, identify missing facts and draft a response for approval.", why: "Customer-support assistance has field evidence; local-service economics still require a measured pilot.",
+      test: "Route after-hours inquiries for 14 days; measure booked jobs, errors and response time.", risk: "Misquoted scope, emergencies, consent and call-recording rules.", source: "NBER — Generative AI at Work", url: "https://www.nber.org/papers/w31161",
+    }],
+    nonAi: [{
+      title: "Booking → dispatch → payment", task: "Self-serve slots, route constraints, reminders, digital completion and card-on-file.", why: "Booking and business-management software are common SME tools; integration—not mere adoption—is the value hypothesis.",
+      test: "Use one service zone; compare no-shows, drive time and cash collection.", risk: "Poor routes, schedule gaming, platform dependency.", source: "UK Small Business Survey 2024", url: "https://www.gov.uk/government/statistics/small-business-survey-2024-businesses-with-employees",
+    }],
+  },
+  commerce: {
+    ai: [{
+      title: "Catalog enrichment with QA", task: "Draft structured attributes, comparison copy and support answers from product records.", why: "A bounded corpus makes review possible; gains must be measured against error-driven returns and support load.",
+      test: "A/B 50 SKUs; inspect conversion, return reasons and correction rate.", risk: "Invented claims, IP issues, inconsistent brand voice.", source: "NIST — Generative AI Profile", url: "https://doi.org/10.6028/NIST.AI.600-1",
+    }],
+    nonAi: [{
+      title: "Inventory threshold + replenishment", task: "Trigger purchase suggestions from on-hand, lead time and service-level rules.", why: "Integrated information flows are a core ERP use case; start with recommendations, not autonomous buying.",
+      test: "Backtest 12 weeks; compare stockouts, inventory days and expedited freight.", risk: "Bad lead-time data and demand shocks.", source: "OECD — E-business measurement", url: "https://www.oecd.org/en/publications/measuring-the-digital-transformation_9789264311992-en.html",
+    }],
+  },
+  hospitality: {
+    ai: [{
+      title: "Multilingual guest-message copilot", task: "Draft replies from property policies, booking context and local guidance.", why: "Language-heavy support is a plausible transfer from customer-service studies, but property-specific accuracy is unproven.",
+      test: "Pilot low-risk FAQs only; track escalation, correction and guest rating.", risk: "Unsafe local advice, policy errors, sensitive guest data.", source: "OECD — Generative AI and SME workforce", url: "https://www.oecd.org/en/publications/generative-ai-and-the-sme-workforce_2d08b99d-en.html",
+    }],
+    nonAi: [{
+      title: "Booking + turnover orchestration", task: "Sync reservations, deposits, access codes, cleaning tasks and inspection exceptions.", why: "E-booking adoption is higher in hospitality in OECD survey data; the causal value still needs local measurement.",
+      test: "One property for one month; measure coordination minutes and missed turnovers.", risk: "Lockout, double booking, vendor dependency.", source: "OECD — Western Balkans Enterprise Survey 2026", url: "https://www.oecd.org/en/publications/western-balkans-enterprise-survey_a1b14188-en.html",
+    }],
+  },
+  software: {
+    ai: [{
+      title: "Support-to-product intelligence", task: "Cluster tickets, suggest known fixes and draft evidence-linked issue summaries.", why: "Support is the best-studied enterprise GenAI reference class; product-specific deployment effects remain uncertain.",
+      test: "Shadow 100 tickets; measure resolution, deflection and incorrect suggestions.", risk: "Private data exposure and false fixes.", source: "NBER — Generative AI at Work", url: "https://www.nber.org/papers/w31161",
+    }],
+    nonAi: [{
+      title: "Self-serve provisioning + billing", task: "Create tenant, enforce plan limits, meter usage, invoice and revoke on explicit events.", why: "Deterministic provisioning reduces manual marginal cost and exposes unit economics early.",
+      test: "Automate the happy path; require manual approval for exceptions; measure failure rate.", risk: "Entitlement bugs and revenue leakage.", source: "OECD — Digital Transformation of SMEs", url: "https://www.oecd.org/en/publications/the-digital-transformation-of-smes_bdb9256a-en.html",
+    }],
+  },
+  manufacturing: {
+    ai: [{
+      title: "Inspection decision support", task: "Flag visual anomalies for a trained operator; retain images and decisions for audit.", why: "NIST identifies machine vision and inspection as common automation applications; a site-specific gauge study is required.",
+      test: "Blind compare against inspectors; pre-set false-negative tolerance.", risk: "Safety defects, distribution shift, inadequate traceability.", source: "NIST — Robotics and Manufacturing Automation", url: "https://www.nist.gov/mep/robotics-and-manufacturing-automation",
+    }],
+    nonAi: [{
+      title: "Barcode + poka-yoke workflow", task: "Scan material and route only valid part/process combinations; stop exceptions.", why: "Simple sensors and rule controls may beat flexible AI when the process is stable and errors are costly.",
+      test: "One cell; measure defects, cycle time and workarounds before expanding.", risk: "Workarounds, downtime and hidden process variation.", source: "NIST — Manufacturers’ Guide to Industry 4.0", url: "https://www.nist.gov/system/files/documents/2022/09/14/MEPNN%20Manufacturers%20Guide%20to%20Industry%204.0%20Technologies-508.pdf",
+    }],
+  },
+};
+
+export function automationsFor(sector: Sector) {
+  return { ai: [...sectorAdditions[sector].ai, ...commonAi], nonAi: [...sectorAdditions[sector].nonAi, ...commonNonAi] };
+}
+
+export function inferSector(text: string): Sector {
+  const value = text.toLowerCase();
+  if (/manufactur|factory|fabricat|warehouse|machine|robot/.test(value)) return "manufacturing";
+  if (/hotel|rental|guest|travel|restaurant|cabin|lodg/.test(value)) return "hospitality";
+  if (/shop|store|retail|e-?commerce|product|brand|marketplace/.test(value)) return "commerce";
+  if (/software|saas|app|platform|api|data|developer/.test(value)) return "software";
+  if (/home service|clean|repair|landscap|plumb|electric|mobile|local/.test(value)) return "local";
+  return "professional";
+}
+
+export function attractiveness(scores: Scores) {
+  return Math.round(Object.values(scores).reduce((sum, value) => sum + value, 0) * 10) / Object.values(scores).length;
+}
+
+export function gateFor(score: number, evidence: number) {
+  if (score < 45) return { label: "PAUSE / REFRAME", tone: "red", reason: "The model is weak even before stronger evidence." };
+  if (evidence < 2) return { label: "DISCOVER", tone: "amber", reason: "Use behavior-focused discovery; do not build yet." };
+  if (evidence < 4) return { label: "TEST COMMITMENT", tone: "amber", reason: "Seek a costly commitment with a pre-set threshold." };
+  if (score < 65) return { label: "PIVOT / NARROW", tone: "amber", reason: "Evidence exists, but the opportunity design is still marginal." };
+  if (evidence < 6) return { label: "PAID PILOT", tone: "green", reason: "Fund only a manual or concierge proof of delivery." };
+  return { label: "REPEATABILITY TEST", tone: "green", reason: "Test retention and repeatable acquisition before scaling." };
+}
+
+export function economics(idea: Idea) {
+  const contribution = Math.max(0, idea.price - idea.variableCost - idea.acquisitionCost);
+  const monthlyContribution = contribution * idea.customers;
+  const ownerCash = monthlyContribution - idea.opex;
+  const breakEven = contribution > 0 ? Math.ceil(idea.opex / contribution) : Infinity;
+  const payback = ownerCash > 0 ? idea.capex / ownerCash : Infinity;
+  return { contribution, monthlyContribution, ownerCash, breakEven, payback };
+}
+
+export const sources = [
+  ["Entrepreneur-as-scientist RCT", "116 Italian startups; theory + rigorous hypothesis testing improved decision precision.", "https://pubsonline.informs.org/doi/10.1287/mnsc.2018.3249"],
+  ["Scientific Method for Startups", "Theory-led experiments test causal beliefs, not merely convenient signals.", "https://journals.sagepub.com/doi/10.1177/01492063231226136"],
+  ["Willingness-to-pay meta-analysis", "Hypothetical WTP averaged 21% above real WTP across the reviewed studies.", "https://link.springer.com/article/10.1007/s11747-019-00666-6"],
+  ["Experimentation and startup performance", "A/B testing adoption was associated with improved startup performance; observational, high-tech setting.", "https://pubsonline.informs.org/doi/10.1287/mnsc.2021.4209"],
+  ["NIST AI Risk Management Framework", "Voluntary framework for incorporating trustworthiness into AI design, use and evaluation.", "https://www.nist.gov/itl/ai-risk-management-framework"],
+  ["OECD: Generative AI and SME workforce", "Survey and research synthesis; reports workload and performance effects with strong context dependence.", "https://www.oecd.org/en/publications/generative-ai-and-the-sme-workforce_2d08b99d-en.html"],
+  ["HMRC: Making Tax Digital", "Survey-based estimates found record-keeping time savings; UK VAT context limits transferability.", "https://www.gov.uk/government/publications/estimating-the-wider-economic-benefit-of-making-tax-digital"],
+  ["NIST: Robotics and automation", "Common small-manufacturer applications and a measurement-first implementation process.", "https://www.nist.gov/mep/robotics-and-manufacturing-automation"],
+] as const;
