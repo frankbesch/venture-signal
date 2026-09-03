@@ -29,6 +29,9 @@ jobs:
       - name: lint
         run: pnpm run lint
 
+      - name: typecheck
+        run: pnpm run typecheck
+
       # `pnpm test` builds the worker bundle first, then asserts the rendered
       # HTML and the source-level product contract (tests/rendered-html.test.mjs).
       - name: build + product-contract tests

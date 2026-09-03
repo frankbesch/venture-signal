@@ -2,6 +2,16 @@
 import { handleImageOptimization, DEFAULT_DEVICE_SIZES, DEFAULT_IMAGE_SIZES } from "vinext/server/image-optimization";
 import handler from "vinext/server/app-router-entry";
 
+// Minimal structural bindings. `@cloudflare/workers-types` is deliberately not
+// used: its global Request/Response declarations conflict with the DOM lib the
+// app code compiles against.
+interface Fetcher {
+  fetch(request: Request): Promise<Response>;
+}
+
+/** D1 binding declared by the scaffold; this worker does not query it. */
+type D1Database = unknown;
+
 interface Env {
   ASSETS: Fetcher;
   DB: D1Database;
