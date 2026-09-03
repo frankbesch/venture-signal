@@ -2,6 +2,8 @@
 
 A local-first decision lab for pressure-testing business ideas before committing material capital.
 
+Status: portfolio project by Frank Besch. Built in August 2026 from the Codex starter (see scaffold note); CI and publishing added September 2026. Maintained as a working example, not a product. MIT licensed.
+
 ## product contract
 
 Venture Signal implements a staged evidence system:
@@ -45,6 +47,8 @@ Then open `http://localhost:3000`.
 
 ## verify
 
+CI (`.github/workflows/ci.yml`) runs the same two commands on every push and pull request.
+
 ```bash
 pnpm test
 pnpm run lint
@@ -59,6 +63,10 @@ pnpm run lint
 - Financial outputs omit founder compensation, tax, working capital, bad debt and capacity interactions.
 - Research links were reviewed on 2026-08-09; re-check them before using the app for a consequential or regulated decision.
 
+## scaffold note
+
+The project started from the Codex "site creator" starter: `vinext` (a Vite-based Next.js app-router runtime) targeting a Cloudflare Worker. `.openai/hosting.json` and `build/sites-vite-plugin.ts` are that scaffold's hosting metadata and are kept because the build reads them; no Cloudflare or OpenAI account is needed to run or test locally.
+
 ## repo map
 
 - `app/idea-lab.tsx` — UI, interaction and local persistence
@@ -66,3 +74,4 @@ pnpm run lint
 - `app/globals.css` — responsive visual system
 - `tests/rendered-html.test.mjs` — build-level product contract checks
 - `docs/method.md` — methodology, scoring and extension rules
+- `.github/workflows/ci.yml` — lint, build and product-contract tests
