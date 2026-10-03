@@ -15,6 +15,18 @@ It deliberately keeps two quantities separate:
 - **attractiveness** — how good the opportunity would be if its premises were true;
 - **evidence strength** — the strongest costly, observable customer behavior actually seen.
 
+<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/stages-dark.svg"/><img width="400" align="top" src="docs/diagrams/stages-light.svg" alt="Diagram: the six evidence stages, each with the method step that carries it. Text version below."/></picture> <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screens/evidence-dark.png"/><img width="400" align="top" src="docs/screens/evidence-light.png" alt="Screenshot: the Evaluate view at phone width, showing the eight-level evidence ladder with level 2 marked strongest observed. Text version below."/></picture></p>
+
+The six stages, each with the method step in `app/lib.ts` that carries it:
+generate alternatives (02 Opportunity set), state causal logic (03 Theory
+of value), investigate behavior (04 Buying-system discovery), test
+commitments (08 Behavioral demand), model economics (09 Feasibility +
+economics), and stage investment (10 Decision gate: fund only the next
+uncertainty-reducing milestone). The screenshot is the Evaluate view at
+phone width on the built-in demo idea: the eight-level evidence ladder, from
+assertion to repeatable acquisition, with level 2, expert or customer
+opinion, marked strongest observed.
+
 The default posture is low initial capex and no paid acquisition. “Zero acquisition” means zero **paid** acquisition initially; every business still needs a credible path to customers.
 
 ## capabilities

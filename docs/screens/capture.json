@@ -1,0 +1,10 @@
+{
+  "note": "Start the app first (pnpm run dev, port 3000). Then: node docs/screens/capture.mjs docs/screens/capture.json. A fresh browser profile shows the built-in demo idea; no saved ideas are read. The app's dark theme follows the system setting, so each scheme is captured.",
+  "root": "../..",
+  "shots": [
+    {"out": "evidence-light.png", "url": "http://localhost:3000/", "scheme": "light", "height_from": "../diagrams/stages-light.svg", "wait": 600,
+     "before": "await new Promise(r => setTimeout(r, 1200)); [...document.querySelectorAll('button')].find(b => b.textContent.trim().endsWith('evaluate')).click(); await new Promise(r => setTimeout(r, 400)); const l = [...document.querySelectorAll('.panel-label')].find(e => e.textContent.includes('EVIDENCE STRENGTH')); l.scrollIntoView({block: 'start'}); window.scrollBy(0, -84);"},
+    {"out": "evidence-dark.png", "url": "http://localhost:3000/", "scheme": "dark", "height_from": "../diagrams/stages-light.svg", "wait": 600,
+     "before": "await new Promise(r => setTimeout(r, 1200)); [...document.querySelectorAll('button')].find(b => b.textContent.trim().endsWith('evaluate')).click(); await new Promise(r => setTimeout(r, 400)); const l = [...document.querySelectorAll('.panel-label')].find(e => e.textContent.includes('EVIDENCE STRENGTH')); l.scrollIntoView({block: 'start'}); window.scrollBy(0, -84);"}
+  ]
+}
