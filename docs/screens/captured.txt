@@ -1,5 +1,5 @@
 Captured by capture.mjs from capture.json at 340 CSS px, scale 2.
-Chrome/154.0.8037.93, repo at ca086b9.
+Chrome/154.0.8037.93, repo at 0700c40.
 
 evidence-light.png: 680x1332 px, 101 KB, smallest text 11 CSS px, light, http://localhost:3000/
 evidence-dark.png: 680x1332 px, 104 KB, smallest text 11 CSS px, dark, http://localhost:3000/
